@@ -18,9 +18,9 @@ const Store = {
 const AppData = {
     profile: Store.get('profile', { name: 'Guest', focus: 'Personal Growth', cloudUrl: '' }),
     routines: Store.get('routines', [
-        { id: 1, title: 'Morning Meditation', time: '07:00 AM', completed: false, type: 'habit' },
-        { id: 2, title: 'Deep Work Session', time: '09:00 AM', completed: false, type: 'study' },
-        { id: 3, title: 'Workout', time: '05:00 PM', completed: false, type: 'wellness' }
+        { id: 1, title: 'Morning Meditation', time: '07:00', completed: false, type: 'Habit' },
+        { id: 2, title: 'Deep Work Session', time: '09:00', completed: false, type: 'Study' },
+        { id: 3, title: 'Workout', time: '17:00', completed: false, type: 'Wellness' }
     ]),
     studySessions: Store.get('studySessions', []),
     quotes: [
@@ -45,6 +45,7 @@ const SyncService = {
             console.log("Synced Session to Cloud");
         } catch (e) {
             console.error("Sync Error", e);
+            alert("Cloud Sync Error: Check console details");
         }
     },
     async syncRoutines() {
@@ -59,6 +60,7 @@ const SyncService = {
             console.log("Synced Routines to Cloud");
         } catch (e) {
             console.error("Sync Error", e);
+            alert("Cloud Sync Error: Check console details");
         }
     }
 };
@@ -78,14 +80,14 @@ const Router = {
     navigate: (viewId) => {
         Router.current = viewId;
 
-        // Update Nav
+        // Update Nav (Hide nav if in modal/add mode for cleanliness, or just keep it)
+        // keeping it simple
         document.querySelectorAll('.nav-item').forEach(el => {
             el.classList.toggle('active', el.dataset.target === viewId);
             const span = el.querySelector('span');
-            // Animate labels
             if (el.dataset.target === viewId) {
                 span.style.opacity = '1';
-                span.style.bottom = '-20px'; // Actually visible position relative to some container, css handles this
+                span.style.bottom = '-20px';
             } else {
                 span.style.opacity = '0';
             }
@@ -93,20 +95,28 @@ const Router = {
 
         // Render Content
         const main = document.getElementById('main-content');
-        main.innerHTML = '';
-        main.classList.remove('fade-in');
-        void main.offsetWidth; // Trigger reflow
-        main.classList.add('fade-in');
 
-        switch (viewId) {
-            case 'home': Views.renderHome(main); break;
-            case 'routine': Views.renderRoutine(main); break;
-            case 'study': Views.renderStudy(main); break;
-            case 'progress': Views.renderProgress(main); break;
-            case 'profile': Views.renderProfile(main); break;
-        }
+        // Simple View Transition
+        main.style.opacity = '0';
+        main.style.transform = 'translateY(10px)';
 
-        lucide.createIcons();
+        setTimeout(() => {
+            main.innerHTML = '';
+
+            switch (viewId) {
+                case 'home': Views.renderHome(main); break;
+                case 'routine': Views.renderRoutine(main); break;
+                case 'add-routine': Views.renderAddRoutine(main); break; // New View!
+                case 'study': Views.renderStudy(main); break;
+                case 'progress': Views.renderProgress(main); break;
+                case 'profile': Views.renderProfile(main); break;
+            }
+
+            lucide.createIcons();
+
+            main.style.opacity = '1';
+            main.style.transform = 'translateY(0)';
+        }, 200);
     }
 };
 
@@ -150,7 +160,9 @@ const Views = {
     },
 
     renderRoutine: (container) => {
-        const listHtml = AppData.routines.map(routine => `
+        const emptyState = `<p style="text-align:center; padding:20px; color:var(--text-secondary);">No routines yet. Start your journey.</p>`;
+
+        const listHtml = AppData.routines.length ? AppData.routines.map(routine => `
             <div class="glass-card" style="display:flex; align-items:center; justify-content:space-between; padding:15px;">
                 <div>
                     <h3 style="font-size:16px; margin-bottom:4px; text-decoration: ${routine.completed ? 'line-through' : 'none'}; opacity: ${routine.completed ? 0.5 : 1}">${routine.title}</h3>
@@ -166,15 +178,45 @@ const Views = {
                     ${routine.completed ? '<i data-lucide="check" style="width:14px; color:#000;"></i>' : ''}
                 </div>
             </div>
-        `).join('');
+        `).join('') : emptyState;
 
         container.innerHTML = `
             <h1>Your Routine</h1>
             <p style="margin-bottom:20px;">Design your perfect day.</p>
             ${listHtml}
-            <div class="glass-card" style="text-align:center; border-style:dashed; cursor:pointer;" onclick="alert('Add Routine Modal would open here')">
+            <div class="glass-card" style="text-align:center; border-style:dashed; cursor:pointer;" onclick="Router.navigate('add-routine')">
                 <p>+ Add New Routine</p>
             </div>
+        `;
+    },
+
+    renderAddRoutine: (container) => {
+        container.innerHTML = `
+            <h1>New Routine</h1>
+            <p style="margin-bottom:20px;">What do you want to achieve?</p>
+            
+            <form onsubmit="Actions.addRoutine(event)">
+                <div class="glass-card">
+                    <p style="margin-bottom:5px;">Routine Title</p>
+                    <input type="text" id="r-title" placeholder="e.g., Read 10 pages" required 
+                        style="width:100%; background:rgba(255,255,255,0.1); border:1px solid var(--glass-border); color:white; padding:12px; border-radius:8px; margin-bottom:15px; outline:none;">
+                    
+                    <p style="margin-bottom:5px;">Time</p>
+                    <input type="time" id="r-time" required 
+                        style="width:100%; background:rgba(255,255,255,0.1); border:1px solid var(--glass-border); color:white; padding:12px; border-radius:8px; margin-bottom:15px; outline:none; color-scheme:dark;">
+
+                    <p style="margin-bottom:5px;">Type</p>
+                    <select id="r-type" style="width:100%; background:rgba(255,255,255,0.1); border:1px solid var(--glass-border); color:white; padding:12px; border-radius:8px; outline:none;">
+                        <option value="Habit" style="color:black;">Habit</option>
+                        <option value="Study" style="color:black;">Study</option>
+                        <option value="Wellness" style="color:black;">Wellness</option>
+                        <option value="Work" style="color:black;">Work</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-primary" style="margin-bottom:10px;">Save Routine</button>
+                <button type="button" onclick="Router.navigate('routine')" style="background:transparent; border:1px solid var(--glass-border); color:var(--text-secondary); width:100%; padding:12px; border-radius:12px; cursor:pointer;">Cancel</button>
+            </form>
         `;
     },
 
@@ -283,6 +325,30 @@ const Actions = {
 
             // Sync to Cloud
             SyncService.syncRoutines();
+        }
+    },
+
+    addRoutine: (e) => {
+        e.preventDefault();
+        const title = document.getElementById('r-title').value;
+        const time = document.getElementById('r-time').value;
+        const type = document.getElementById('r-type').value;
+
+        if (title && time) {
+            const newRoutine = {
+                id: Date.now(),
+                title: title,
+                time: time,
+                type: type,
+                completed: false
+            };
+            AppData.routines.push(newRoutine);
+            Store.set('routines', AppData.routines);
+
+            // Sync
+            SyncService.syncRoutines();
+
+            Router.navigate('routine');
         }
     },
 
