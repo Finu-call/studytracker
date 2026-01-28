@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cinematic Life Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts: Inter & Playfair Display for cinematic feel -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Lucide Icons (Loaded via UNPKG for simplicity in no-build) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-background">
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+    </div>
+
+    <div class="app-container">
+        <!-- Dynamic Content Area -->
+        <main id="main-content" class="fade-in">
+            <!-- Views will be injected here by app.js -->
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="glass-nav">
+            <button class="nav-item active" data-target="home">
+                <i data-lucide="home"></i>
+                <span>Home</span>
+            </button>
+            <button class="nav-item" data-target="routine">
+                <i data-lucide="list-todo"></i>
+                <span>Routine</span>
+            </button>
+            <button class="nav-item" data-target="study">
+                <i data-lucide="timer"></i>
+                <span>Study</span>
+            </button>
+            <button class="nav-item" data-target="progress">
+                <i data-lucide="bar-chart-2"></i>
+                <span>Progress</span>
+            </button>
+            <button class="nav-item" data-target="profile">
+                <i data-lucide="user"></i>
+                <span>Profile</span>
+            </button>
+        </nav>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
