@@ -16,7 +16,7 @@ const Store = {
 
 // Initial Data
 const AppData = {
-    profile: Store.get('profile', { name: 'Guest', focus: 'Personal Growth' }),
+    profile: Store.get('profile', { name: 'Guest', focus: 'Personal Growth', cloudUrl: '' }),
     routines: Store.get('routines', [
         { id: 1, title: 'Morning Meditation', time: '07:00 AM', completed: false, type: 'habit' },
         { id: 2, title: 'Deep Work Session', time: '09:00 AM', completed: false, type: 'study' },
@@ -29,6 +29,38 @@ const AppData = {
         { text: "Focus on the step in front of you, not the whole staircase.", author: "Unknown" },
         { text: "Your future is created by what you do today, not tomorrow.", author: "Robert Kiyosaki" }
     ]
+};
+
+// --- Cloud Sync Service (Google Sheets) ---
+const SyncService = {
+    async logSession(session) {
+        if (!AppData.profile.cloudUrl) return;
+        try {
+            await fetch(AppData.profile.cloudUrl, {
+                method: 'POST',
+                mode: 'no-cors', // Google Scripts requirement for simple requests
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'log_session', session: session })
+            });
+            console.log("Synced Session to Cloud");
+        } catch (e) {
+            console.error("Sync Error", e);
+        }
+    },
+    async syncRoutines() {
+        if (!AppData.profile.cloudUrl) return;
+        try {
+            await fetch(AppData.profile.cloudUrl, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'sync_routines', routines: AppData.routines })
+            });
+            console.log("Synced Routines to Cloud");
+        } catch (e) {
+            console.error("Sync Error", e);
+        }
+    }
 };
 
 // --- View Router ---
@@ -198,6 +230,8 @@ const Views = {
     },
 
     renderProfile: (container) => {
+        const isConnected = !!AppData.profile.cloudUrl;
+
         container.innerHTML = `
             <div style="text-align:center; margin-bottom:30px;">
                 <div style="width:80px; height:80px; background:var(--accent-gold); border-radius:50%; margin:0 auto 15px; display:flex; align-items:center; justify-content:center; font-size:30px; color:#000; font-weight:bold;">
@@ -212,15 +246,23 @@ const Views = {
                 <div style="margin-top:15px;">
                     <p style="margin-bottom:10px;">Display Name</p>
                     <input type="text" value="${AppData.profile.name}" onchange="Actions.updateProfile('name', this.value)" 
-                    style="width:100%; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); color:white; padding:10px; border-radius:8px;">
+                    style="width:100%; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); color:white; padding:10px; border-radius:8px; margin-bottom:20px;">
                 </div>
             </div>
             
-            <div class="glass-card" onclick="alert('Cloud Sync coming soon')" style="cursor:pointer;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <i data-lucide="cloud"></i>
-                    <span>Sync Data</span>
+            <div class="glass-card">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
+                    <i data-lucide="${isConnected ? 'link' : 'plug'}"></i>
+                    <h3>Cloud Sync (Google Sheets)</h3>
                 </div>
+                <p style="font-size:12px; margin-bottom:10px; color:var(--text-secondary);">
+                    Paste your Google Web App URL here to enable live spreadsheet tracking.
+                </p>
+                <input type="text" placeholder="https://script.google.com/..." 
+                    value="${AppData.profile.cloudUrl || ''}" 
+                    onchange="Actions.updateProfile('cloudUrl', this.value)" 
+                    style="width:100%; background:rgba(0,0,0,0.2); border:1px solid ${isConnected ? 'var(--accent-blue)' : 'var(--glass-border)'}; color:white; padding:10px; border-radius:8px;">
+                ${isConnected ? '<p style="color:var(--accent-blue); font-size:12px; margin-top:5px;">✓ Connected</p>' : ''}
             </div>
         `;
     }
@@ -238,12 +280,19 @@ const Actions = {
             routine.completed = !routine.completed;
             Store.set('routines', AppData.routines);
             Router.navigate('routine'); // Re-render
+
+            // Sync to Cloud
+            SyncService.syncRoutines();
         }
     },
 
     updateProfile: (key, val) => {
         AppData.profile[key] = val;
         Store.set('profile', AppData.profile);
+        if (key === 'cloudUrl') {
+            Router.navigate('profile'); // Re-render to show connected state
+            alert('Cloud URL updated! Try completing a routine to test sync.');
+        }
     },
 
     toggleTimer: () => {
@@ -277,12 +326,17 @@ const Actions = {
                     isTimerRunning = false;
                     timeLeft = 25 * 60; // Reset
 
-                    AppData.studySessions.push({
+                    const session = {
                         subject: 'Deep Work',
                         duration: 25,
                         date: new Date().toISOString()
-                    });
+                    };
+
+                    AppData.studySessions.push(session);
                     Store.set('studySessions', AppData.studySessions);
+
+                    // Sync to Cloud
+                    SyncService.logSession(session);
 
                     Router.navigate('study'); // Refresh list
                     alert("Focus Session Complete! Great job.");
